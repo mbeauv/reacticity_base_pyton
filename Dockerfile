@@ -11,7 +11,6 @@ RUN apk add --no-cache \
 
 # Install uv package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
@@ -20,10 +19,14 @@ WORKDIR /app
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Copy uv to user's home directory and update PATH
-RUN cp -r /root/.cargo /home/appuser/ && \
-    chown -R appuser:appgroup /home/appuser/.cargo
+# Find where uv was installed and copy it to user's home
+RUN UV_INSTALL_DIR=$(find /root -name "uv" -type f 2>/dev/null | head -1 | xargs dirname) && \
+    if [ -n "$UV_INSTALL_DIR" ]; then \
+        mkdir -p /home/appuser/.local/bin && \
+        cp "$UV_INSTALL_DIR/uv" /home/appuser/.local/bin/ && \
+        chown -R appuser:appgroup /home/appuser/.local; \
+    fi
 
 # Switch to non-root user
 USER appuser
-ENV PATH="/home/appuser/.cargo/bin:$PATH"
+ENV PATH="/home/appuser/.local/bin:$PATH"
