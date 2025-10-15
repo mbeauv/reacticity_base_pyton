@@ -1,4 +1,9 @@
-FROM python:3.11-alpine
+FROM python:3.13-alpine
+
+# Add metadata
+LABEL maintainer="mbeauv"
+LABEL description="Python 3.13 base image with essential tools"
+LABEL version="1.0.0"
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -7,26 +12,17 @@ RUN apk add --no-cache \
     curl \
     git \
     build-base \
-    ca-certificates
+    ca-certificates \
+    musl-dev \
+    zlib-dev
 
-# Install uv package manager
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install uv package manager and move to standard location
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    rm -rf /root/.local && \
+    apk del curl
 
-# Set working directory
-WORKDIR /app
+# Verify uv installation
+RUN uv --version
 
-# Create a non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
 
-# Find where uv was installed and copy it to user's home
-RUN UV_INSTALL_DIR=$(find /root -name "uv" -type f 2>/dev/null | head -1 | xargs dirname) && \
-    if [ -n "$UV_INSTALL_DIR" ]; then \
-        mkdir -p /home/appuser/.local/bin && \
-        cp "$UV_INSTALL_DIR/uv" /home/appuser/.local/bin/ && \
-        chown -R appuser:appgroup /home/appuser/.local; \
-    fi
-
-# Switch to non-root user
-USER appuser
-ENV PATH="/home/appuser/.local/bin:$PATH"
